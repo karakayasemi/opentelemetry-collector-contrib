@@ -271,18 +271,25 @@ func (e *kafkaLogsMessenger) getTopic(ctx context.Context, ld plog.Logs) string 
 func (e *kafkaLogsMessenger) partitionData(ld plog.Logs) iter.Seq2[[]byte, plog.Logs] {
 	return func(yield func([]byte, plog.Logs) bool) {
 		if !e.config.PartitionLogsByResourceAttributes {
+			if e.config.TopicFromAttribute != "" {
+				for _, resourceLogs := range ld.ResourceLogs().All() {
+					hash := pdatautil.ValueHash(pcommon.NewValueStr(""))
+					if rv, ok := resourceLogs.Resource().Attributes().Get(e.config.TopicFromAttribute); ok && rv.Str() != "" {
+						hash = pdatautil.ValueHash(pcommon.NewValueStr(rv.Str()))
+					}
+					newLogs := plog.NewLogs()
+					resourceLogs.CopyTo(newLogs.ResourceLogs().AppendEmpty())
+					if !yield(hash[:], newLogs) {
+						return
+					}
+				}
+				return
+			}
 			yield(nil, ld)
 			return
 		}
 		for _, resourceLogs := range ld.ResourceLogs().All() {
 			hash := pdatautil.MapHash(resourceLogs.Resource().Attributes())
-			if e.config.TopicFromAttribute != "" {
-				if rv, ok := resourceLogs.Resource().Attributes().Get(e.config.TopicFromAttribute); ok && rv.Str() != "" {
-					tmpMap := pcommon.NewMap()
-					tmpMap.PutBool(rv.Str(), true)
-					hash = pdatautil.MapHash(tmpMap)
-				}
-			}
 			newLogs := plog.NewLogs()
 			resourceLogs.CopyTo(newLogs.ResourceLogs().AppendEmpty())
 			if !yield(hash[:], newLogs) {
@@ -321,18 +328,25 @@ func (e *kafkaMetricsMessenger) getTopic(ctx context.Context, md pmetric.Metrics
 func (e *kafkaMetricsMessenger) partitionData(md pmetric.Metrics) iter.Seq2[[]byte, pmetric.Metrics] {
 	return func(yield func([]byte, pmetric.Metrics) bool) {
 		if !e.config.PartitionMetricsByResourceAttributes {
+			if e.config.TopicFromAttribute != "" {
+				for _, resourceMetrics := range md.ResourceMetrics().All() {
+					hash := pdatautil.ValueHash(pcommon.NewValueStr(""))
+					if rv, ok := resourceMetrics.Resource().Attributes().Get(e.config.TopicFromAttribute); ok && rv.Str() != "" {
+						hash = pdatautil.ValueHash(pcommon.NewValueStr(rv.Str()))
+					}
+					newMetrics := pmetric.NewMetrics()
+					resourceMetrics.CopyTo(newMetrics.ResourceMetrics().AppendEmpty())
+					if !yield(hash[:], newMetrics) {
+						return
+					}
+				}
+				return
+			}
 			yield(nil, md)
 			return
 		}
 		for _, resourceMetrics := range md.ResourceMetrics().All() {
 			hash := pdatautil.MapHash(resourceMetrics.Resource().Attributes())
-			if e.config.TopicFromAttribute != "" {
-				if rv, ok := resourceMetrics.Resource().Attributes().Get(e.config.TopicFromAttribute); ok && rv.Str() != "" {
-					tmpMap := pcommon.NewMap()
-					tmpMap.PutBool(rv.Str(), true)
-					hash = pdatautil.MapHash(tmpMap)
-				}
-			}
 			newMetrics := pmetric.NewMetrics()
 			resourceMetrics.CopyTo(newMetrics.ResourceMetrics().AppendEmpty())
 			if !yield(hash[:], newMetrics) {
