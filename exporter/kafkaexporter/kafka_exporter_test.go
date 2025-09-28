@@ -569,7 +569,6 @@ func TestMetricsPusher_partitioning(t *testing.T) {
 		assert.Equal(t, keys[0], keys[1])
 		assert.NotEqual(t, keys[0], keys[2])
 	})
-
 }
 
 func TestMetricsDataPusher_Kgo(t *testing.T) {
